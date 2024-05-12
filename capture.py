@@ -1,20 +1,57 @@
-import struct
 import socket
+import struct
+import time
+
+import pandas
 
 
-def capture_packets(enable: list, sock: socket.socket, counter: list) -> None:
+def capture_packets(enable: list, sock: socket.socket, df: pandas.DataFrame) -> None:
     if enable[0] == "ON":
         try:
             raw_data, _ = sock.recvfrom(65535)
+            t = time.time()
             if raw_data:
-                counter[0] += 1
+                mac_dst, mac_src, eth_proto, eth_data = ethernet_frame(raw_data)
+                transport_protocol = ""
+                rest = None
+
+                # 8 for IPv4
+                if eth_proto == 8:
+                    version, header_length, ttl, protocol, ip_src, ip_dst, ip_data = ipv4_packet(eth_data)
+                    rest = {"version": version, "header_length": header_length, "ttl": ttl, "ip_src": ip_src,
+                            "ip_dst": ip_dst}
+                    if protocol == 1:
+                        transport_protocol = "ICMP"
+                        icmp_type, icmp_code, checksum, transport_data = icmp_packet(ip_data)
+                        rest.update({"icmp_type": icmp_type, "icmp_code": icmp_code, "checksum": checksum,
+                                     "payload": transport_data})
+                    elif protocol == 6:
+                        transport_protocol = "TCP"
+                        src_port, dst_port, sequence_number, acknowledgment_number, flags, transport_data = tcp_segment(
+                            ip_data)
+                        rest.update({"port_src": src_port, "port_dst": dst_port, "sequence_number": sequence_number,
+                                     "acknowledgment_number": acknowledgment_number, "flags": flags,
+                                     "payload": transport_data})
+                    elif protocol == 17:
+                        transport_protocol = "UDP"
+                        src_port, dst_port, length, transport_data = udp_segment(ip_data)
+                        rest.update(
+                            {"port_src": src_port, "port_dst": dst_port, "length": length, "payload": transport_data})
+                    else:
+                        transport_protocol = f"{protocol}"
+                        rest.update({"payload": ip_data})
+
+                # cols: ["number", "time", "t_captured", "mac_src", "mac_dst", "protocol", "length", "rest"]
+                row = [len(df) + 1, None, t, mac_src, mac_dst, transport_protocol, len(raw_data), rest]
+                df.loc[len(df)] = row
+                df.at[df.index[-1], 'time'] = t - df.at[df.index[0], 't_captured']
         except BlockingIOError:
             pass  # No packets to read, move on
 
 
-def start_packet_capture(enable: list, sock: socket.socket, counter: list) -> None:
+def start_packet_capture(enable: list, sock: socket.socket, df: pandas.DataFrame) -> None:
     while enable[0] == "ON":
-        capture_packets(enable, sock, counter)
+        capture_packets(enable, sock, df)
 
 
 def ethernet_frame(data: bytes) -> tuple:
@@ -118,8 +155,8 @@ def icmp_packet(data: bytes) -> tuple:
     The function unpacks the first 4 bytes to get the ICMP type, code, and checksum.
     The remainder of the data is returned as the ICMP payload.
     """
-    icmp_type, code, checksum = struct.unpack('! B B H', data[:4])
-    return icmp_type, code, checksum, data[4:]
+    icmp_type, icmp_code, checksum = struct.unpack('! B B H', data[:4])
+    return icmp_type, icmp_code, checksum, data[4:]
 
 
 def tcp_segment(data: bytes) -> tuple:
@@ -135,19 +172,20 @@ def tcp_segment(data: bytes) -> tuple:
                - Destination port (int),
                - Sequence number (int),
                - Acknowledgment number (int),
-               - Urgent flag (bool),
-               - Acknowledgment flag (bool),
-               - Push function flag (bool),
-               - Reset flag (bool),
-               - Synchronize flag (bool),
-               - Finish flag (bool),
+               - A dictionary of flags including:
+                      'URG' (bool): Urgent flag,
+                      'ACK' (bool): Acknowledgment flag,
+                      'PSH' (bool): Push function flag,
+                      'RST' (bool): Reset flag,
+                      'SYN' (bool): Synchronize flag,
+                      'FIN' (bool): Finish flag,
                - TCP payload data (bytes).
 
     This function extracts the TCP segment header and interprets the flags from a reserved field,
     computing the data offset to determine where the payload begins.
     """
     # Unpack the first 14 bytes for basic header information and the flags
-    src_port, dest_port, sequence, acknowledgment, offset_reserved_flags = struct.unpack('! H H L L H', data[:14])
+    src_port, dst_port, sequence, acknowledgment, offset_reserved_flags = struct.unpack('! H H L L H', data[:14])
     # Calculate the data offset
     offset = (offset_reserved_flags >> 12) * 4
     # Extract flags using bitwise operations
@@ -157,9 +195,16 @@ def tcp_segment(data: bytes) -> tuple:
     flag_rst = (offset_reserved_flags & 4) >> 2
     flag_syn = (offset_reserved_flags & 2) >> 1
     flag_fin = offset_reserved_flags & 1
+    flags = {
+        "URG": flag_urg,
+        "ACK": flag_ack,
+        "PSH": flag_psh,
+        "RST": flag_rst,
+        "SYN": flag_syn,
+        "FIN": flag_fin,
+    }
     # Return unpacked data and the payload
-    return src_port, dest_port, sequence, acknowledgment, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin, \
-        data[offset:]
+    return src_port, dst_port, sequence, acknowledgment, flags, data[offset:]
 
 
 def udp_segment(data: bytes) -> tuple:

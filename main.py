@@ -1,10 +1,11 @@
 import curses
 import math
-import socket
 import threading
+
 import pandas as pd
-from utils import *
+
 from capture import *
+from utils import *
 
 # key options
 OPTIONS = {
@@ -39,7 +40,7 @@ def display_options(stdscr) -> None:
     stdscr.refresh()
 
 
-def display_status(stdscr, proto: int, capture_state: str, counter: int) -> None:
+def display_status(stdscr, proto: int, capture_state: str, n_packets: int) -> None:
     protocol_name = PROTOCOLS_OPTIONS[proto]
     match protocol_name:
         case "TCP":
@@ -54,7 +55,7 @@ def display_status(stdscr, proto: int, capture_state: str, counter: int) -> None
     # Display updated information
     capture_text = f"{capture_state:<3}"
     protocol_text = f"Transport Protocol: "
-    counter_text = f"Packets captured: {counter}"
+    counter_text = f"Packets captured: {n_packets}"
 
     # Display the capture state with dynamic color
     stdscr.addstr(1, 2, "Capture: ")
@@ -71,7 +72,7 @@ def display_status(stdscr, proto: int, capture_state: str, counter: int) -> None
     stdscr.refresh()
 
 
-def display_table(stdscr) -> None:
+def display_table(stdscr, df: pd.DataFrame) -> None:
     # TODO: show table
     h, w = stdscr.getmaxyx()  # screen dimension
     max_cols = w - 2  # excluding borders
@@ -106,7 +107,9 @@ def main(stdscr) -> None:
     counter = [0]
     enable = ["OFF"]
     transport_filter = 0
-    df = pd.DataFrame(columns=["Number", "Time", "MAC address src", "MAC address dst", "Protocol", "Length"])
+    df = pd.DataFrame(
+        columns=["number", "time", "t_captured", "mac_src", "mac_dst", "protocol", "length", "rest"]
+    )
 
     stdscr.refresh()
     curses.curs_set(0)  # Hide the cursor
@@ -141,9 +144,9 @@ def main(stdscr) -> None:
     while True:
         # stdscr.clear()
         display_options(win_bottom)
-        display_status(win_top, transport_filter, enable[0], counter[0])
+        display_status(win_top, transport_filter, enable[0], len(df))
 
-        display_table(win_mid_l)
+        display_table(win_mid_l, df)
 
         try:
             key = stdscr.getch()
@@ -157,7 +160,7 @@ def main(stdscr) -> None:
                 enable[0] = "OFF"
             else:
                 enable[0] = "ON"
-                threading.Thread(target=start_packet_capture, args=(enable, sock, counter)).start()
+                threading.Thread(target=start_packet_capture, args=(enable, sock, df)).start()
         elif key == ord('f'):
             # Cycle through the elements
             transport_filter = (transport_filter + 1) % len(PROTOCOLS_OPTIONS)

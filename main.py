@@ -4,12 +4,15 @@ import socket
 import threading
 import pandas as pd
 from utils import *
+from capture import *
 
 # key options
 OPTIONS = {
     "Q": "QUIT",
     "S": "START/STOP CAPTURE",
-    "F": "FILTER"
+    "F": "FILTER",
+    u" \u2191 | \u2193 ": "Row up/down",
+    u" \u2190 | \u2192 ": "Previous/next page",
 }
 
 # transport protocols
@@ -37,10 +40,6 @@ def display_options(stdscr) -> None:
 
 
 def display_status(stdscr, proto: int, capture_state: str, counter: int) -> None:
-    # text colors
-    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
-    curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
-
     # Display updated information
     protocol_text = f"Transport Protocol: {PROTOCOLS_OPTIONS[proto]:<4}"
     stdscr.addstr(1, 2, "Capture: ")
@@ -63,9 +62,9 @@ def display_table(stdscr) -> None:
         "Protocol": math.floor(max_cols * 0.1) - 1,
         "Length": math.floor(max_cols * 0.1),
     }
-    col_str = "|".join(center_string(col, length) for col, length in cols_dim.items())
+    table_header = "|".join(center_string(col, length) for col, length in cols_dim.items())
 
-    stdscr.addstr(1, 1, col_str, curses.A_BOLD)
+    stdscr.addstr(1, 1, table_header, curses.A_BOLD | curses.A_REVERSE)
     stdscr.addstr(h - 2, 3, f"h: {h} ")
     stdscr.addstr(h - 2, 10, f"w: {w}")
     stdscr.refresh()
@@ -82,7 +81,7 @@ def display_more_info(stdscr) -> None:
 def capture_packets(enable: list, sock: socket.socket, counter: list) -> None:
     if enable[0] == "ON":
         try:
-            raw_data, adrr = sock.recvfrom(65535)
+            raw_data, _ = sock.recvfrom(65535)
             if raw_data:
                 counter[0] += 1
         except BlockingIOError:
@@ -100,11 +99,19 @@ def main(stdscr) -> None:
     counter = [0]
     enable = ["OFF"]
     transport_filter = 0
+    df = pd.DataFrame(columns=["Number", "Time", "MAC address src", "MAC address dst", "Protocol", "Length"])
 
     stdscr.refresh()
     curses.curs_set(0)  # Hide the cursor
     stdscr.nodelay(True)  # making getch() non-blocking
     MAX_HEIGHT, MAX_WIDTH = stdscr.getmaxyx()  # Screen max width and height
+
+    # Defining colors
+    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
+    curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    curses.init_pair(3, curses.COLOR_CYAN, curses.COLOR_BLACK)  # for TCP
+    curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_BLACK)  # for UDP
+    curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # for ICMP
 
     # Create top window
     win_top = curses.newwin(int(MAX_HEIGHT * 0.10), MAX_WIDTH, 0, 0)

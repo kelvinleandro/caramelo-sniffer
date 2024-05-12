@@ -40,12 +40,34 @@ def display_options(stdscr) -> None:
 
 
 def display_status(stdscr, proto: int, capture_state: str, counter: int) -> None:
+    protocol_name = PROTOCOLS_OPTIONS[proto]
+    match protocol_name:
+        case "TCP":
+            proto_color = 3
+        case "UDP":
+            proto_color = 4
+        case "ICMP":
+            proto_color = 5
+        case _:
+            proto_color = 0
+
     # Display updated information
-    protocol_text = f"Transport Protocol: {PROTOCOLS_OPTIONS[proto]:<4}"
+    capture_text = f"{capture_state:<3}"
+    protocol_text = f"Transport Protocol: "
+    counter_text = f"Packets captured: {counter}"
+
+    # Display the capture state with dynamic color
     stdscr.addstr(1, 2, "Capture: ")
-    stdscr.addstr(1, 11, f"{capture_state:<3}", curses.color_pair(1 if capture_state == "OFF" else 2))
-    stdscr.addstr(1, 17, '\t' + protocol_text)
-    stdscr.addstr(1, 25 + len(protocol_text), '\t' + f"Packets captured: {counter}")
+    stdscr.addstr(1, 11, capture_text, curses.color_pair(1 if capture_state == "OFF" else 2))
+
+    # Display the protocol text in default color and the protocol name in its specific color
+    stdscr.addstr(1, 17, protocol_text)
+    stdscr.addstr(1, 17 + len(protocol_text), f"{protocol_name:<4}", curses.color_pair(proto_color))
+
+    # Display the packet counter
+    stdscr.addstr(1, 17 + len(protocol_text) + len(protocol_name), "\t" + counter_text)
+
+    # Refresh the screen to update the display
     stdscr.refresh()
 
 
@@ -76,21 +98,6 @@ def display_more_info(stdscr) -> None:
     # TODO: Page 2/3: Transport Protocol
     # TODO: Page 3/3: show "non-converted" bytes (scrolling up automatically)
     pass
-
-
-def capture_packets(enable: list, sock: socket.socket, counter: list) -> None:
-    if enable[0] == "ON":
-        try:
-            raw_data, _ = sock.recvfrom(65535)
-            if raw_data:
-                counter[0] += 1
-        except BlockingIOError:
-            pass  # No packets to read, move on
-
-
-def start_packet_capture(enable: list, sock: socket.socket, counter: list) -> None:
-    while enable[0] == "ON":
-        capture_packets(enable, sock, counter)
 
 
 def main(stdscr) -> None:

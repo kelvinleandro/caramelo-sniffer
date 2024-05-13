@@ -1,1 +1,0 @@
-# Caramelo Sniffer 🐶

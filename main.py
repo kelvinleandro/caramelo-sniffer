@@ -72,11 +72,10 @@ def display_status(stdscr, proto: int, capture_state: str, n_packets: int) -> No
     stdscr.refresh()
 
 
-def display_table(stdscr, df: pd.DataFrame) -> None:
-    # TODO: show table
+def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int) -> None:
     h, w = stdscr.getmaxyx()  # screen dimension
     max_cols = w - 2  # excluding borders
-    max_lines = h - 3  # excluding borders and table header
+    n_rows = h - 3  # number of rows to display
     cols_dim = {
         "Number": math.floor(max_cols * 0.1) - 1,
         "Time": math.floor(max_cols * 0.1) - 1,
@@ -88,8 +87,17 @@ def display_table(stdscr, df: pd.DataFrame) -> None:
     table_header = "|".join(center_string(col, length) for col, length in cols_dim.items())
 
     stdscr.addstr(1, 1, table_header, curses.A_BOLD | curses.A_REVERSE)
-    stdscr.addstr(h - 2, 3, f"h: {h} ")
-    stdscr.addstr(h - 2, 10, f"w: {w}")
+
+    for i in range(n_rows):
+        if display_start + i < len(df):
+            item = df.iloc[display_start + i]
+            line_str = generate_table_line(item, cols_dim)
+            color = select_line_color(item)
+            if i == current_row:
+                stdscr.addstr(i + 2, 1, line_str, curses.color_pair(color) | curses.A_REVERSE)
+            else:
+                stdscr.addstr(i + 2, 1, line_str, curses.color_pair(color))
+
     stdscr.refresh()
 
 
@@ -104,12 +112,14 @@ def display_more_info(stdscr) -> None:
 def main(stdscr) -> None:
     sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
     sock.setblocking(False)
-    counter = [0]
+
     enable = ["OFF"]
     transport_filter = 0
     df = pd.DataFrame(
         columns=["number", "time", "t_captured", "mac_src", "mac_dst", "protocol", "length", "rest"]
     )
+    current_row = 0
+    display_start = 0
 
     stdscr.refresh()
     curses.curs_set(0)  # Hide the cursor
@@ -136,6 +146,8 @@ def main(stdscr) -> None:
     # Create bottom window
     win_bottom = curses.newwin(int(MAX_HEIGHT * 0.10), MAX_WIDTH, int(MAX_HEIGHT * 0.90), 0)
 
+    n_display_rows = win_mid_l.getmaxyx()[0] - 3 # number of rows to display in table
+
     # Set box and refresh each window to draw them on the screen
     for win in [win_top, win_mid_l, win_mid_r, win_bottom]:
         win.box()
@@ -146,24 +158,35 @@ def main(stdscr) -> None:
         display_options(win_bottom)
         display_status(win_top, transport_filter, enable[0], len(df))
 
-        display_table(win_mid_l, df)
+        display_table(win_mid_l, df, current_row, display_start)
 
         try:
             key = stdscr.getch()
-        except:
-            key = None
+        except Exception:
+            key = -1
 
-        if key == ord('q'):
-            break
-        elif key == ord('s'):
-            if enable[0] == "ON":
-                enable[0] = "OFF"
-            else:
-                enable[0] = "ON"
-                threading.Thread(target=start_packet_capture, args=(enable, sock, df)).start()
-        elif key == ord('f'):
-            # Cycle through the elements
-            transport_filter = (transport_filter + 1) % len(PROTOCOLS_OPTIONS)
+        if 0 <= key <= 255:
+            char = chr(key).lower()
+            if char == 'q':
+                break
+            elif char == 's':
+                if enable[0] == "ON":
+                    enable[0] = "OFF"
+                else:
+                    enable[0] = "ON"
+                    threading.Thread(target=start_packet_capture, args=(enable, sock, df)).start()
+            elif char == 'f':
+                # Cycle through the elements
+                transport_filter = (transport_filter + 1) % len(PROTOCOLS_OPTIONS)
+        elif key == curses.KEY_UP and current_row > 0:
+            current_row -= 1
+        elif key == curses.KEY_UP and display_start > 0:
+            display_start -= 1
+        elif key == curses.KEY_DOWN and current_row < n_display_rows - 1:
+            if current_row + display_start < len(df) - 1:
+                current_row += 1
+        elif key == curses.KEY_DOWN and display_start + n_display_rows < len(df):
+            display_start += 1
 
         stdscr.refresh()
 

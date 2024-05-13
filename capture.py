@@ -12,8 +12,8 @@ def capture_packets(enable: list, sock: socket.socket, df: pandas.DataFrame) -> 
             t = time.time()
             if raw_data:
                 mac_dst, mac_src, eth_proto, eth_data = ethernet_frame(raw_data)
-                transport_protocol = ""
-                rest = None
+                transport_protocol = "unknown"
+                rest = {}
 
                 # 8 for IPv4
                 if eth_proto == 8:

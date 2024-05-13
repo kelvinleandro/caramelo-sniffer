@@ -1,9 +1,26 @@
 def center_string(text: str, length: int) -> str:
-    if len(text) >= length:
-        return text[:length - 3] + "..."
+    if len(str(text)) >= length:
+        return str(text)[:length - 3] + "..."
     else:
         return f"{text:^{length}}"
-        # spaces = length - len(text)
-        # left_spaces = spaces // 2
-        # right_spaces = spaces - left_spaces
-        # return " " * left_spaces + text + " " * right_spaces
+
+
+def generate_table_line(line, cols_dim: dict) -> str:
+    values = [line["number"], line["time"], line["mac_src"], line["mac_dst"], line["protocol"], line["length"]]
+    length = list(cols_dim.values())
+    line_str = "|".join(center_string(values[i], length[i]) for i in range(len(values)))
+    return line_str
+
+
+def select_line_color(line) -> int:
+    protocol = line["protocol"]
+    match protocol:
+        case "TCP":
+            proto_color = 3
+        case "UDP":
+            proto_color = 4
+        case "ICMP":
+            proto_color = 5
+        case _:
+            proto_color = 0
+    return proto_color

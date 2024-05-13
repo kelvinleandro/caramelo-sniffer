@@ -21,7 +21,6 @@ PROTOCOLS_OPTIONS = ["ALL", "TCP", "UDP", "ICMP"]
 
 
 def display_options(stdscr) -> None:
-    # stdscr.clear()
     h, w = stdscr.getmaxyx()  # screen dimension
     menu_str = ""
     for key, value in OPTIONS.items():
@@ -72,10 +71,18 @@ def display_status(stdscr, proto: int, capture_state: str, n_packets: int) -> No
     stdscr.refresh()
 
 
-def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int) -> None:
+def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int, transport_filter: int) -> None:
+    # stdscr.clear()
     h, w = stdscr.getmaxyx()  # screen dimension
     max_cols = w - 2  # excluding borders
     n_rows = h - 3  # number of rows to display
+    proto = PROTOCOLS_OPTIONS[transport_filter]
+
+    # Apply filtering based on the protocol
+    if proto != "ALL":
+        df = df[df['protocol'] == proto]
+
+    # Column dimensions based on the width of the screen
     cols_dim = {
         "Number": math.floor(max_cols * 0.1) - 1,
         "Time": math.floor(max_cols * 0.1) - 1,
@@ -101,7 +108,7 @@ def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int
     stdscr.refresh()
 
 
-def display_more_info(stdscr) -> None:
+def display_more_info(stdscr, page) -> None:
     # Show other info in mid-right screen
     # TODO: Page 1/3: Internet Protocol
     # TODO: Page 2/3: Transport Protocol
@@ -158,7 +165,10 @@ def main(stdscr) -> None:
         display_options(win_bottom)
         display_status(win_top, transport_filter, enable[0], len(df))
 
-        display_table(win_mid_l, df, current_row, display_start)
+        display_table(win_mid_l, df, current_row, display_start, transport_filter)
+
+        if enable[0] == "ON" and len(df) > n_display_rows:
+            display_start = len(df) - n_display_rows
 
         try:
             key = stdscr.getch()
@@ -177,6 +187,8 @@ def main(stdscr) -> None:
                     threading.Thread(target=start_packet_capture, args=(enable, sock, df)).start()
             elif char == 'f':
                 # Cycle through the elements
+                win_mid_l.clear()
+                win_mid_l.box()
                 transport_filter = (transport_filter + 1) % len(PROTOCOLS_OPTIONS)
         elif key == curses.KEY_UP and current_row > 0:
             current_row -= 1

@@ -18,8 +18,8 @@ def capture_packets(enable: list, sock: socket.socket, df: pandas.DataFrame) -> 
                 # 8 for IPv4
                 if eth_proto == 8:
                     version, header_length, ttl, protocol, ip_src, ip_dst, ip_data = ipv4_packet(eth_data)
-                    rest = {"version": version, "header_length": header_length, "ttl": ttl, "ip_src": ip_src,
-                            "ip_dst": ip_dst}
+                    rest.update({"ip_version": version, "header_length": header_length, "ttl": ttl, "ip_src": ip_src,
+                                 "ip_dst": ip_dst})
                     if protocol == 1:
                         transport_protocol = "ICMP"
                         icmp_type, icmp_code, checksum, transport_data = icmp_packet(ip_data)
@@ -40,8 +40,9 @@ def capture_packets(enable: list, sock: socket.socket, df: pandas.DataFrame) -> 
                     else:
                         transport_protocol = f"{protocol}"
                         rest.update({"payload": ip_data})
+                else:
+                    rest.update({"payload": eth_data})
 
-                # cols: ["number", "time", "t_captured", "mac_src", "mac_dst", "protocol", "length", "rest"]
                 row = [len(df) + 1, None, t, mac_src, mac_dst, transport_protocol, len(raw_data), rest]
                 df.loc[len(df)] = row
                 df.at[df.index[-1], 'time'] = t - df.at[df.index[0], 't_captured']

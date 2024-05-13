@@ -2,10 +2,10 @@ import socket
 import struct
 import time
 
-import pandas
+import pandas as pd
 
 
-def capture_packets(enable: list, sock: socket.socket, df: pandas.DataFrame) -> None:
+def capture_packets(enable: list, sock: socket.socket, df: pd.DataFrame) -> None:
     if enable[0] == "ON":
         try:
             raw_data, _ = sock.recvfrom(65535)
@@ -50,7 +50,7 @@ def capture_packets(enable: list, sock: socket.socket, df: pandas.DataFrame) -> 
             pass  # No packets to read, move on
 
 
-def start_packet_capture(enable: list, sock: socket.socket, df: pandas.DataFrame) -> None:
+def start_packet_capture(enable: list, sock: socket.socket, df: pd.DataFrame) -> None:
     while enable[0] == "ON":
         capture_packets(enable, sock, df)
 

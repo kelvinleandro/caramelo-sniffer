@@ -51,7 +51,6 @@ def display_status(stdscr, proto: int, capture_state: str, n_packets: int) -> No
         case _:
             proto_color = 0
 
-    # Display updated information
     capture_text = f"{capture_state:<3}"
     protocol_text = f"Transport Protocol: "
     counter_text = f"Packets captured: {n_packets}"
@@ -108,18 +107,23 @@ def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int
     stdscr.refresh()
 
 
-def display_more_info(stdscr, page) -> None:
+def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
     # Show other info in mid-right screen
     # TODO: Page 1/3: Internet Protocol
     # TODO: Page 2/3: Transport Protocol
     # TODO: Page 3/3: show "non-converted" bytes (scrolling up automatically)
-    pass
+    item = df.iloc[index]
+    rest = item["rest"]
+    stdscr.addstr(1,1, f"page {page}/3")
+    stdscr.refresh()
 
 
 def main(stdscr) -> None:
+    # socket initialization
     sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
     sock.setblocking(False)
 
+    # 'states' variables
     enable = ["OFF"]
     transport_filter = 0
     df = pd.DataFrame(
@@ -127,6 +131,7 @@ def main(stdscr) -> None:
     )
     current_row = 0
     display_start = 0
+    page = 1
 
     stdscr.refresh()
     curses.curs_set(0)  # Hide the cursor
@@ -161,20 +166,31 @@ def main(stdscr) -> None:
         win.refresh()
 
     while True:
-        # stdscr.clear()
         display_options(win_bottom)
         display_status(win_top, transport_filter, enable[0], len(df))
 
         display_table(win_mid_l, df, current_row, display_start, transport_filter)
 
+        if enable[0] == "ON":
+            # shows nothing in mid-right window while the capture is ON
+            win_mid_r.clear()
+        elif transport_filter != 0:
+            # pass a filtered dataframe as argument if capture filter is not "ALL" 
+            display_more_info(win_mid_r, df[df["protocol"] == PROTOCOLS_OPTIONS[transport_filter]], display_start + current_row, page)
+        else:
+            display_more_info(win_mid_r, df, display_start + current_row, page)
+
+        # updates the first item index to display in table if the dataframe length is bigger than the number of row while capture is ON
         if enable[0] == "ON" and len(df) > n_display_rows:
             display_start = len(df) - n_display_rows
 
+        # listen to key press
         try:
             key = stdscr.getch()
         except Exception:
             key = -1
 
+        # handling key press
         if 0 <= key <= 255:
             char = chr(key).lower()
             if char == 'q':
@@ -186,7 +202,6 @@ def main(stdscr) -> None:
                     enable[0] = "ON"
                     threading.Thread(target=start_packet_capture, args=(enable, sock, df)).start()
             elif char == 'f':
-                # Cycle through the elements
                 win_mid_l.clear()
                 win_mid_l.box()
                 transport_filter = (transport_filter + 1) % len(PROTOCOLS_OPTIONS)
@@ -199,6 +214,10 @@ def main(stdscr) -> None:
                 current_row += 1
         elif key == curses.KEY_DOWN and display_start + n_display_rows < len(df):
             display_start += 1
+        elif key == curses.KEY_RIGHT and page < 3:
+            page += 1
+        elif key == curses.KEY_LEFT and page > 1 :
+            page -= 1
 
         stdscr.refresh()
 

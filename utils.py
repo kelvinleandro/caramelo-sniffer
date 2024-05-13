@@ -1,3 +1,6 @@
+import pandas as pd
+
+
 def center_string(text: str, length: int) -> str:
     if len(str(text)) >= length:
         return str(text)[:length - 3] + "..."
@@ -5,14 +8,14 @@ def center_string(text: str, length: int) -> str:
         return f"{text:^{length}}"
 
 
-def generate_table_line(line, cols_dim: dict) -> str:
+def generate_table_line(line: pd.Series, cols_dim: dict) -> str:
     values = [line["number"], line["time"], line["mac_src"], line["mac_dst"], line["protocol"], line["length"]]
     length = list(cols_dim.values())
     line_str = "|".join(center_string(values[i], length[i]) for i in range(len(values)))
     return line_str
 
 
-def select_line_color(line) -> int:
+def select_line_color(line: pd.Series) -> int:
     protocol = line["protocol"]
     match protocol:
         case "TCP":

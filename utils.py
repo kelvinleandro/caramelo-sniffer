@@ -5,7 +5,8 @@ def center_string(text: str, length: int) -> str:
     if len(str(text)) >= length:
         return str(text)[:length - 3] + "..."
     else:
-        return f"{text:^{length}}"
+        return str(text).center(length)
+        # return f"{text:^{length}}"
 
 
 def generate_table_line(line: pd.Series, cols_dim: dict) -> str:

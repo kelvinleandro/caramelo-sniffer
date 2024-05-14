@@ -1,6 +1,8 @@
 import curses
 import math
 import threading
+import time
+import pandas as pd
 
 from capture import *
 from utils import *
@@ -94,9 +96,9 @@ def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int
 
     for i in range(n_rows):
         if display_start + i < len(df):
-            item = df.iloc[display_start + i]
-            line_str = generate_table_line(item, cols_dim)
-            color = select_line_color(item)
+            packet = df.iloc[display_start + i]
+            line_str = generate_table_line(packet, cols_dim)
+            color = select_line_color(packet)
             if i == current_row:
                 stdscr.addstr(i + 2, 1, line_str, curses.color_pair(color) | curses.A_REVERSE)
             else:
@@ -106,14 +108,14 @@ def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int
 
 
 def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
-    # TODO: Page 2/3: Transport Protocol
-    # TODO: Page 3/3: show "non-converted" bytes (scrolling up automatically)
+    # TODO: Fix window clear and refresh when index or page changes
     h, w = stdscr.getmaxyx()  # window dimensions
     max_cols = w - 2  # excluding borders
+    max_lines = h - 2
     packet = df.iloc[index]
     rest = packet["rest"]
 
-    stdscr.addstr(1, 1, f"page {page}/3")
+    stdscr.addstr(1, 1, f"Page {page}/3", curses.A_BOLD)
 
     if page == 1:
         stdscr.addstr(2, 1, "Internet Protocol", curses.A_BOLD)
@@ -127,16 +129,16 @@ def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
             stdscr.addstr(4, 1, "No information available for this protocol")
     elif page == 2:
         stdscr.addstr(2, 1, "Transport Protocol", curses.A_BOLD)
-        if packet["transport_protocol"] == "UDP":
+        if packet["protocol"] == "UDP":
             stdscr.addstr(4, 1, f"Port source: {rest['port_src']}")
             stdscr.addstr(5, 1, f"Port destination: {rest['port_dst']}")
             stdscr.addstr(6, 1, f"Length: {rest['length']}")
-        elif packet["transport_protocol"] == "TCP":
-            # {"port_src": src_port, "port_dst": dst_port, "sequence_number": sequence_number,
-            #                                      "acknowledgment_number": acknowledgment_number, "flags": flags,
-            #                                      "payload": transport_data}
-            pass
-        elif packet["transport_protocol"] == "ICMP":
+        elif packet["protocol"] == "TCP":
+            stdscr.addstr(4, 1, f"Port source: {rest['port_src']}")
+            stdscr.addstr(5, 1, f"Port destination: {rest['port_dst']}")
+            stdscr.addstr(6, 1, f"Sequence number: {rest['sequence_number']}")
+            stdscr.addstr(7, 1, f"Acknowledgment number: {rest['acknowledgment_number']}")
+        elif packet["protocol"] == "ICMP":
             stdscr.addstr(4, 1, f"ICMP type: {rest['icmp_type']}")
             stdscr.addstr(5, 1, f"ICMP code: {rest['icmp_code']}")
             stdscr.addstr(6, 1, f"Checksum: {rest['checksum']}")
@@ -144,8 +146,37 @@ def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
             stdscr.addstr(4, 1, "No information available for this protocol")
     elif page == 3:
         stdscr.addstr(2, 1, "Payload", curses.A_BOLD)
+        display_scrolling_payload(stdscr, rest["payload"], max_cols, max_lines)
 
     stdscr.refresh()
+
+
+def display_scrolling_payload(stdscr, payload: bytes, pad_width: int, max_height: int) -> None:
+    text = ' '.join(r'\x{:02x}'.format(byte) for byte in payload)
+    pad_height = math.ceil(len(text) / pad_width)
+    pad = curses.newpad(pad_height, pad_width)
+    pad.addstr(text, curses.color_pair(5))
+
+    win_y, win_x = stdscr.getbegyx()
+
+    # Define the relative offset within the window where the pad should start displaying
+    start_y, start_x = 4, 1  # Pad's top-left corner relative to window
+
+    # Window's upper left corner coordinates on screen (where to start showing in the window)
+    sminrow = win_y + start_y
+    smincol = win_x + start_x
+
+    # Lower right corner coordinates on screen (limit to window size or specified max_height and pad_width)
+    smaxrow = win_y + start_y + max_height - 1
+    smaxcol = win_x + start_x + pad_width - 1
+
+    if pad_height <= max_height - 2:
+        # Refresh pad to display it within the window
+        pad.refresh(0, 0, sminrow, smincol, smaxrow, smaxcol)
+    else:
+        for i in range(pad_height):
+            pad.refresh(i, 0, sminrow, smincol, smaxrow, smaxcol)
+            time.sleep(0.3)
 
 
 def main(stdscr) -> None:

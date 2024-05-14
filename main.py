@@ -1,7 +1,6 @@
 import curses
 import math
 import threading
-import time
 import pandas as pd
 
 from capture import *

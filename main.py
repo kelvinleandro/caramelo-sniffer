@@ -146,12 +146,12 @@ def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
             stdscr.addstr(4, 1, "No information available for this protocol")
     elif page == 3:
         stdscr.addstr(2, 1, "Payload", curses.A_BOLD)
-        display_scrolling_payload(stdscr, rest["payload"], max_cols, max_lines)
+        display_payload(stdscr, rest["payload"], max_cols, max_lines)
 
     stdscr.refresh()
 
 
-def display_scrolling_payload(stdscr, payload: bytes, pad_width: int, max_height: int) -> None:
+def display_payload(stdscr, payload: bytes, pad_width: int, max_height: int) -> None:
     text = ' '.join(r'\x{:02x}'.format(byte) for byte in payload)
     pad_height = math.ceil(len(text) / pad_width)
     pad = curses.newpad(pad_height, pad_width)
@@ -170,12 +170,7 @@ def display_scrolling_payload(stdscr, payload: bytes, pad_width: int, max_height
     smaxrow = win_y + start_y + max_height - 1
     smaxcol = win_x + start_x + pad_width - 1
 
-    if pad_height <= max_height - 2:
-        pad.refresh(0, 0, sminrow, smincol, smaxrow, smaxcol)
-    else:
-        for i in range(pad_height):
-            pad.refresh(i, 0, sminrow, smincol, smaxrow, smaxcol)
-            time.sleep(0.3)
+    pad.refresh(0, 0, sminrow, smincol, smaxrow, smaxcol)
 
 
 def main(stdscr) -> None:
@@ -192,6 +187,8 @@ def main(stdscr) -> None:
     current_row = 0
     display_start = 0
     page = 1
+    prev_page = page
+    prev_index = current_row
 
     stdscr.refresh()
     curses.curs_set(0)  # Hide the cursor
@@ -235,11 +232,20 @@ def main(stdscr) -> None:
             # shows nothing in mid-right window while the capture is ON
             win_mid_r.clear()
         elif transport_filter != 0:
+            if prev_page != page or prev_index != current_row:
+                win_mid_r.clear()
+                win_mid_r.box()
             # pass a filtered dataframe as argument if capture filter is not "ALL" 
             display_more_info(win_mid_r, df[df["protocol"] == PROTOCOLS_OPTIONS[transport_filter]],
                               display_start + current_row, page)
         else:
+            if prev_page != page or prev_index != current_row:
+                win_mid_r.clear()
+                win_mid_r.box()
             display_more_info(win_mid_r, df, display_start + current_row, page)
+
+        prev_page = page
+        prev_index = current_row
 
         # updates the first item index to display in table if the dataframe length is bigger than the number of rows
         # while capture is ON

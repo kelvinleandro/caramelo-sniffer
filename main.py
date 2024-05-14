@@ -115,7 +115,7 @@ def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
     packet = df.iloc[index]
     rest = packet["rest"]
 
-    stdscr.addstr(1, 1, f"Page {page}/3", curses.A_BOLD)
+    stdscr.addstr(1, 1, f"Page {page}/3", curses.A_BOLD | curses.A_REVERSE)
 
     if page == 1:
         stdscr.addstr(2, 1, "Internet Protocol", curses.A_BOLD)
@@ -155,7 +155,7 @@ def display_scrolling_payload(stdscr, payload: bytes, pad_width: int, max_height
     text = ' '.join(r'\x{:02x}'.format(byte) for byte in payload)
     pad_height = math.ceil(len(text) / pad_width)
     pad = curses.newpad(pad_height, pad_width)
-    pad.addstr(text, curses.color_pair(5))
+    pad.addstr(text, curses.color_pair(3))
 
     win_y, win_x = stdscr.getbegyx()
 
@@ -171,7 +171,6 @@ def display_scrolling_payload(stdscr, payload: bytes, pad_width: int, max_height
     smaxcol = win_x + start_x + pad_width - 1
 
     if pad_height <= max_height - 2:
-        # Refresh pad to display it within the window
         pad.refresh(0, 0, sminrow, smincol, smaxrow, smaxcol)
     else:
         for i in range(pad_height):

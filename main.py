@@ -124,9 +124,24 @@ def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
             stdscr.addstr(7, 1, f"IP Source: {rest['ip_src']}")
             stdscr.addstr(8, 1, f"IP Destination: {rest['ip_dst']}")
         else:
-            stdscr.addstr(4, 1, "No information available for this packet")
+            stdscr.addstr(4, 1, "No information available for this protocol")
     elif page == 2:
         stdscr.addstr(2, 1, "Transport Protocol", curses.A_BOLD)
+        if packet["transport_protocol"] == "UDP":
+            stdscr.addstr(4, 1, f"Port source: {rest['port_src']}")
+            stdscr.addstr(5, 1, f"Port destination: {rest['port_dst']}")
+            stdscr.addstr(6, 1, f"Length: {rest['length']}")
+        elif packet["transport_protocol"] == "TCP":
+            # {"port_src": src_port, "port_dst": dst_port, "sequence_number": sequence_number,
+            #                                      "acknowledgment_number": acknowledgment_number, "flags": flags,
+            #                                      "payload": transport_data}
+            pass
+        elif packet["transport_protocol"] == "ICMP":
+            stdscr.addstr(4, 1, f"ICMP type: {rest['icmp_type']}")
+            stdscr.addstr(5, 1, f"ICMP code: {rest['icmp_code']}")
+            stdscr.addstr(6, 1, f"Checksum: {rest['checksum']}")
+        else:
+            stdscr.addstr(4, 1, "No information available for this protocol")
     elif page == 3:
         stdscr.addstr(2, 1, "Payload", curses.A_BOLD)
 

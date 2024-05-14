@@ -107,7 +107,8 @@ def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int
 
 
 def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
-    # TODO: Fix window clear and refresh when index or page changes
+    if len(df) == 0:
+        return
     h, w = stdscr.getmaxyx()  # window dimensions
     max_cols = w - 2  # excluding borders
     max_lines = h - 2
@@ -175,6 +176,7 @@ def display_payload(stdscr, payload: bytes, pad_width: int, max_height: int) -> 
 def main(stdscr) -> None:
     # socket initialization
     sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
+    sock.bind(('eth0', 0))  # Specify the network interface
     sock.setblocking(False)
 
     # 'states' variables
@@ -231,12 +233,12 @@ def main(stdscr) -> None:
             # shows nothing in mid-right window while the capture is ON
             win_mid_r.clear()
         elif transport_filter != 0:
+            filtered_df = df[df["protocol"] == PROTOCOLS_OPTIONS[transport_filter]]
             if prev_page != page or prev_index != current_row:
                 win_mid_r.clear()
                 win_mid_r.box()
             # pass a filtered dataframe as argument if capture filter is not "ALL" 
-            display_more_info(win_mid_r, df[df["protocol"] == PROTOCOLS_OPTIONS[transport_filter]],
-                              display_start + current_row, page)
+            display_more_info(win_mid_r, filtered_df, display_start + current_row, page)
         else:
             if prev_page != page or prev_index != current_row:
                 win_mid_r.clear()

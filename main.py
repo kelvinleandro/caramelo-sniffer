@@ -2,8 +2,6 @@ import curses
 import math
 import threading
 
-import pandas as pd
-
 from capture import *
 from utils import *
 
@@ -72,7 +70,7 @@ def display_status(stdscr, proto: int, capture_state: str, n_packets: int) -> No
 
 def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int, transport_filter: int) -> None:
     # stdscr.clear()
-    h, w = stdscr.getmaxyx()  # screen dimension
+    h, w = stdscr.getmaxyx()  # window dimensions
     max_cols = w - 2  # excluding borders
     n_rows = h - 3  # number of rows to display
     proto = PROTOCOLS_OPTIONS[transport_filter]
@@ -108,13 +106,30 @@ def display_table(stdscr, df: pd.DataFrame, current_row: int, display_start: int
 
 
 def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
-    # Show other info in mid-right screen
-    # TODO: Page 1/3: Internet Protocol
     # TODO: Page 2/3: Transport Protocol
     # TODO: Page 3/3: show "non-converted" bytes (scrolling up automatically)
-    item = df.iloc[index]
-    rest = item["rest"]
-    stdscr.addstr(1,1, f"page {page}/3")
+    h, w = stdscr.getmaxyx()  # window dimensions
+    max_cols = w - 2  # excluding borders
+    packet = df.iloc[index]
+    rest = packet["rest"]
+
+    stdscr.addstr(1, 1, f"page {page}/3")
+
+    if page == 1:
+        stdscr.addstr(2, 1, "Internet Protocol", curses.A_BOLD)
+        if "ip_version" in rest:
+            stdscr.addstr(4, 1, f"IP Version: {rest['ip_version']}")
+            stdscr.addstr(5, 1, f"Header Length: {rest['ip_header_length']}")
+            stdscr.addstr(6, 1, f"TTL: {rest['ip_ttl']}")
+            stdscr.addstr(7, 1, f"IP Source: {rest['ip_src']}")
+            stdscr.addstr(8, 1, f"IP Destination: {rest['ip_dst']}")
+        else:
+            stdscr.addstr(4, 1, "No information available for this packet")
+    elif page == 2:
+        stdscr.addstr(2, 1, "Transport Protocol", curses.A_BOLD)
+    elif page == 3:
+        stdscr.addstr(2, 1, "Payload", curses.A_BOLD)
+
     stdscr.refresh()
 
 
@@ -158,7 +173,7 @@ def main(stdscr) -> None:
     # Create bottom window
     win_bottom = curses.newwin(int(MAX_HEIGHT * 0.10), MAX_WIDTH, int(MAX_HEIGHT * 0.90), 0)
 
-    n_display_rows = win_mid_l.getmaxyx()[0] - 3 # number of rows to display in table
+    n_display_rows = win_mid_l.getmaxyx()[0] - 3  # number of rows to display in table
 
     # Set box and refresh each window to draw them on the screen
     for win in [win_top, win_mid_l, win_mid_r, win_bottom]:
@@ -171,16 +186,18 @@ def main(stdscr) -> None:
 
         display_table(win_mid_l, df, current_row, display_start, transport_filter)
 
-        if enable[0] == "ON":
+        if enable[0] == "ON" or len(df) == 0:
             # shows nothing in mid-right window while the capture is ON
             win_mid_r.clear()
         elif transport_filter != 0:
             # pass a filtered dataframe as argument if capture filter is not "ALL" 
-            display_more_info(win_mid_r, df[df["protocol"] == PROTOCOLS_OPTIONS[transport_filter]], display_start + current_row, page)
+            display_more_info(win_mid_r, df[df["protocol"] == PROTOCOLS_OPTIONS[transport_filter]],
+                              display_start + current_row, page)
         else:
             display_more_info(win_mid_r, df, display_start + current_row, page)
 
-        # updates the first item index to display in table if the dataframe length is bigger than the number of row while capture is ON
+        # updates the first item index to display in table if the dataframe length is bigger than the number of rows
+        # while capture is ON
         if enable[0] == "ON" and len(df) > n_display_rows:
             display_start = len(df) - n_display_rows
 
@@ -216,7 +233,7 @@ def main(stdscr) -> None:
             display_start += 1
         elif key == curses.KEY_RIGHT and page < 3:
             page += 1
-        elif key == curses.KEY_LEFT and page > 1 :
+        elif key == curses.KEY_LEFT and page > 1:
             page -= 1
 
         stdscr.refresh()

@@ -18,8 +18,9 @@ def capture_packets(enable: list, sock: socket.socket, df: pd.DataFrame) -> None
                 # 8 for IPv4
                 if eth_proto == 8:
                     version, header_length, ttl, protocol, ip_src, ip_dst, ip_data = ipv4_packet(eth_data)
-                    rest.update({"ip_version": version, "header_length": header_length, "ttl": ttl, "ip_src": ip_src,
-                                 "ip_dst": ip_dst})
+                    rest.update(
+                        {"ip_version": version, "ip_header_length": header_length, "ip_ttl": ttl, "ip_src": ip_src,
+                         "ip_dst": ip_dst})
                     if protocol == 1:
                         transport_protocol = "ICMP"
                         icmp_type, icmp_code, checksum, transport_data = icmp_packet(ip_data)

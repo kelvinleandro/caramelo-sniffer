@@ -198,7 +198,7 @@ def display_payload(stdscr, payload: bytes, max_cols: int, max_lines: int) -> No
 def main(stdscr) -> None:
     # socket initialization
     sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-    sock.bind(('eth0', 0))  # Specify the network interface
+    # sock.bind(('eth0', 0))  # Specify the network interface
     sock.setblocking(False)
 
     # 'states' variables
@@ -254,6 +254,7 @@ def main(stdscr) -> None:
         if enable[0] == "ON" or len(df) == 0:
             # shows nothing in mid-right window while the capture is ON
             win_mid_r.clear()
+            win_mid_r.box()
         elif transport_filter != 0:
             filtered_df = df[df["protocol"] == PROTOCOLS_OPTIONS[transport_filter]]
             if prev_page != page or prev_index != current_row:
@@ -295,6 +296,7 @@ def main(stdscr) -> None:
             elif char == 'f':
                 win_mid_l.clear()
                 win_mid_l.box()
+                current_row = 0
                 transport_filter = (transport_filter + 1) % len(PROTOCOLS_OPTIONS)
         elif key == curses.KEY_UP and current_row > 0:
             current_row -= 1

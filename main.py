@@ -151,26 +151,38 @@ def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
     stdscr.refresh()
 
 
-def display_payload(stdscr, payload: bytes, pad_width: int, max_height: int) -> None:
+def display_payload(stdscr, payload: bytes, max_cols: int, max_lines: int) -> None:
+    # Convert payload to a space-separated string of hex values
     text = ' '.join(r'\x{:02x}'.format(byte) for byte in payload)
-    pad_height = math.ceil(len(text) / pad_width)
-    pad = curses.newpad(pad_height, pad_width)
-    pad.addstr(text, curses.color_pair(3))
 
-    win_y, win_x = stdscr.getbegyx()
+    # Determine the number of characters per line accounting for the space
+    chars_per_line = max_cols - 1  # Subtract one to prevent automatic line wrapping
 
-    # Define the relative offset within the window where the pad should start displaying
-    start_y, start_x = 4, 1  # Pad's top-left corner relative to window
+    # Start displaying from the fourth line
+    line_num = 4
 
-    # Window's upper left corner coordinates on screen (where to start showing in the window)
-    sminrow = win_y + start_y
-    smincol = win_x + start_x
+    # Initialize the index for slicing the text
+    start_index = 0
 
-    # Lower right corner coordinates on screen (limit to window size or specified max_height and pad_width)
-    smaxrow = win_y + start_y + max_height - 1
-    smaxcol = win_x + start_x + pad_width - 1
+    while start_index < len(text) and line_num < 4 + max_lines:
+        # Calculate end index keeping within the max column limit
+        end_index = start_index + chars_per_line
+        # Ensure we do not slice in the middle of a hex byte representation
+        if end_index < len(text) and text[end_index] == ' ':
+            end_index += 1
 
-    pad.refresh(0, 0, sminrow, smincol, smaxrow, smaxcol)
+        # Get the slice of text for the current line
+        line_text = text[start_index:end_index]
+
+        # Add the text to the screen at the current line and column 1
+        stdscr.addstr(line_num, 1, line_text, curses.color_pair(3))
+
+        # Update the start_index for the next slice and increment the line number
+        start_index = end_index
+        line_num += 1
+
+    # Refresh the screen to display changes
+    stdscr.refresh()
 
 
 def main(stdscr) -> None:

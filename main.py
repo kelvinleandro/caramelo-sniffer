@@ -119,12 +119,22 @@ def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
 
     if page == 1:
         stdscr.addstr(2, 1, "Internet Protocol", curses.A_BOLD)
-        if "ip_version" in rest:
+        if "ip_version" in rest and rest["ip_version"] == 4:
             stdscr.addstr(4, 1, f"IP Version: {rest['ip_version']}")
             stdscr.addstr(5, 1, f"Header Length: {rest['ip_header_length']}")
             stdscr.addstr(6, 1, f"TTL: {rest['ip_ttl']}")
             stdscr.addstr(7, 1, f"IP Source: {rest['ip_src']}")
             stdscr.addstr(8, 1, f"IP Destination: {rest['ip_dst']}")
+        elif "ip_version" in rest and rest["ip_version"] == 6:
+            stdscr.addstr(4, 1, f"IP Version: {rest['ip_version']}")
+            stdscr.addstr(5, 1, f"Hop Limit: {rest['ip_hop_limit']}")
+            stdscr.addstr(6, 1, f"Traffic Class: {rest['ip_traffic_class']}")
+            stdscr.addstr(7, 1, f"Flow Label: {rest['ip_flow_label']}")
+            stdscr.addstr(8, 1, f"Payload Length: {rest['ip_payload_length']}")
+            stdscr.addstr(9, 1, f"IP Source:")
+            stdscr.addstr(10, 1, f"{rest['ip_src']}")
+            stdscr.addstr(11, 1, f"IP Destination:")
+            stdscr.addstr(12, 1, f"{rest['ip_src']}")
         else:
             stdscr.addstr(4, 1, "No information available for this protocol")
     elif page == 2:

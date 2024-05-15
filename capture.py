@@ -15,12 +15,18 @@ def capture_packets(enable: list, sock: socket.socket, df: pd.DataFrame) -> None
                 transport_protocol = "unknown"
                 rest = {}
 
-                # 8 for IPv4
-                if eth_proto == 8:
-                    version, header_length, ttl, protocol, ip_src, ip_dst, ip_data = ipv4_packet(eth_data)
-                    rest.update(
-                        {"ip_version": version, "ip_header_length": header_length, "ip_ttl": ttl, "ip_src": ip_src,
-                         "ip_dst": ip_dst})
+                # IPv4 or IPv6
+                if eth_proto in (8, 56710):
+                    if eth_proto == 8:  # IPv4
+                        version, header_length, ttl, protocol, ip_src, ip_dst, ip_data = ipv4_packet(eth_data)
+                        rest.update(
+                            {"ip_version": version, "ip_header_length": header_length, "ip_ttl": ttl, "ip_src": ip_src,
+                            "ip_dst": ip_dst})
+                    else:  # IPv6
+                        version, traffic_class, flow_label, payload_length, protocol, hop_limit, ip_src, ip_dst, ip_data = ipv6_packet(eth_data)
+                        rest.update(
+                            {"ip_version": version, "ip_traffic_class": traffic_class, "ip_flow_label": flow_label, "ip_payload_length": payload_length, "ip_hop_limit": hop_limit, "ip_src": ip_src, "ip_dst": ip_dst})
+                    
                     if protocol == 1:
                         transport_protocol = "ICMP"
                         icmp_type, icmp_code, checksum, transport_data = icmp_packet(ip_data)
@@ -138,6 +144,54 @@ def ipv4(addr: bytes) -> str:
     the address.
     """
     return '.'.join(map(str, addr))
+
+
+def ipv6_packet(data: bytes) -> tuple:
+    """
+    Unpacks an IPv6 packet from the provided raw data.
+
+    Parameters:
+        data (bytes): The raw data from which the IPv6 packet will be unpacked.
+
+    Returns:
+        tuple: A tuple containing:
+               - IP version (int),
+               - Traffic class (int),
+               - Flow label (int),
+               - Payload length (int),
+               - Next header (int),
+               - Hop limit (int),
+               - Source IP address (str),
+               - Destination IP address (str),
+               - IP payload data (bytes).
+
+    This function unpacks and interprets the IPv6 header fields and extracts
+    the source and destination IP addresses.
+    """
+    version_traffic_flow = struct.unpack('!I', data[:4])[0]
+    version = (version_traffic_flow >> 28) & 0xF
+    traffic_class = (version_traffic_flow >> 20) & 0xFF
+    flow_label = version_traffic_flow & 0xFFFFF
+    payload_length, next_header, hop_limit = struct.unpack('!HBB', data[4:8])
+    src = ipv6(data[8:24])
+    dst = ipv6(data[24:40])
+    return version, traffic_class, flow_label, payload_length, next_header, hop_limit, src, dst, data[40:]
+
+
+def ipv6(addr: bytes) -> str:
+    """
+    Converts a 16-byte IPv6 address into a human-readable format.
+
+    Parameters:
+        addr (bytes): A 16-byte string representing the IPv6 address.
+
+    Returns:
+        str: A string representation of the IPv6 address in colon-separated format.
+
+    Each 2-byte segment of the input is mapped to a hexadecimal number and joined
+    by colons to format the address.
+    """
+    return ':'.join(f'{addr[i:i+2].hex()}' for i in range(0, 16, 2))
 
 
 def icmp_packet(data: bytes) -> tuple:

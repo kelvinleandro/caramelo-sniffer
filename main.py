@@ -297,6 +297,7 @@ def main(stdscr) -> None:
                 win_mid_l.clear()
                 win_mid_l.box()
                 current_row = 0
+                display_start = 0
                 transport_filter = (transport_filter + 1) % len(PROTOCOLS_OPTIONS)
         elif key == curses.KEY_UP and current_row > 0:
             current_row -= 1

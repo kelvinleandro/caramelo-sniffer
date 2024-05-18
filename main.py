@@ -253,15 +253,10 @@ def main(stdscr) -> None:
 
         display_table(win_mid_l, df, current_row, display_start, transport_filter)
 
-        if enable[0] == "ON" or len(df_to_display) == 0:
-            # shows nothing in mid-right window while the capture is ON
+        if prev_page != page or prev_index != current_row:
             win_mid_r.clear()
             win_mid_r.box()
-        else:
-            if prev_page != page or prev_index != current_row:
-                win_mid_r.clear()
-                win_mid_r.box()
-            display_more_info(win_mid_r, df_to_display, display_start + current_row, page)
+        display_more_info(win_mid_r, df_to_display, display_start + current_row, page)
 
         prev_page = page
         prev_index = current_row

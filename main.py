@@ -246,35 +246,25 @@ def main(stdscr) -> None:
         win.refresh()
 
     while True:
+        df_to_display = df if transport_filter == 0 else df[df["protocol"] == PROTOCOLS_OPTIONS[transport_filter]]
+
         display_options(win_bottom)
         display_status(win_top, transport_filter, enable[0], len(df))
 
         display_table(win_mid_l, df, current_row, display_start, transport_filter)
 
-        if enable[0] == "ON" or len(df) == 0:
-            # shows nothing in mid-right window while the capture is ON
+        if prev_page != page or prev_index != current_row:
             win_mid_r.clear()
             win_mid_r.box()
-        elif transport_filter != 0:
-            filtered_df = df[df["protocol"] == PROTOCOLS_OPTIONS[transport_filter]]
-            if prev_page != page or prev_index != current_row:
-                win_mid_r.clear()
-                win_mid_r.box()
-            # pass a filtered dataframe as argument if capture filter is not "ALL" 
-            display_more_info(win_mid_r, filtered_df, display_start + current_row, page)
-        else:
-            if prev_page != page or prev_index != current_row:
-                win_mid_r.clear()
-                win_mid_r.box()
-            display_more_info(win_mid_r, df, display_start + current_row, page)
+        display_more_info(win_mid_r, df_to_display, display_start + current_row, page)
 
         prev_page = page
         prev_index = current_row
 
         # updates the first item index to display in table if the dataframe length is bigger than the number of rows
         # while capture is ON
-        if enable[0] == "ON" and len(df) > n_display_rows:
-            display_start = len(df) - n_display_rows
+        if enable[0] == "ON" and len(df_to_display) > n_display_rows:
+            display_start = len(df_to_display) - n_display_rows
 
         # listen to key press
         try:
@@ -304,9 +294,9 @@ def main(stdscr) -> None:
         elif key == curses.KEY_UP and display_start > 0:
             display_start -= 1
         elif key == curses.KEY_DOWN and current_row < n_display_rows - 1:
-            if current_row + display_start < len(df) - 1:
+            if current_row + display_start < len(df_to_display) - 1:
                 current_row += 1
-        elif key == curses.KEY_DOWN and display_start + n_display_rows < len(df):
+        elif key == curses.KEY_DOWN and display_start + n_display_rows < len(df_to_display):
             display_start += 1
         elif key == curses.KEY_RIGHT and page < 3:
             page += 1

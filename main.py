@@ -174,7 +174,7 @@ def display_payload(stdscr, payload: bytes, max_cols: int, max_lines: int) -> No
     # Initialize the index for slicing the text
     start_index = 0
 
-    while start_index < len(text) and line_num < 4 + max_lines:
+    while start_index < len(text) and line_num < 1 + max_lines:
         # Calculate end index keeping within the max column limit
         end_index = start_index + chars_per_line
         # Ensure we do not slice in the middle of a hex byte representation
@@ -185,7 +185,10 @@ def display_payload(stdscr, payload: bytes, max_cols: int, max_lines: int) -> No
         line_text = text[start_index:end_index]
 
         # Add the text to the screen at the current line and column 1
-        stdscr.addstr(line_num, 1, line_text, curses.color_pair(3))
+        try:
+            stdscr.addstr(line_num, 1, line_text, curses.color_pair(3))
+        except curses.error:
+            break
 
         # Update the start_index for the next slice and increment the line number
         start_index = end_index

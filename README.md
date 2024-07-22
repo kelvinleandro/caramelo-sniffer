@@ -35,10 +35,22 @@ git clone https://github.com/kelvinleandro/caramelo-sniffer.git
 cd caramelo-sniffer
 ```
 
-3. Install required Python packages:
+3. Create a virtual environment within the directory:
 
 ```bash
-sudo pip install -r requirements.txt
+python3 -m venv .venv
+```
+
+4. Activate the virtual environment:
+
+```bash
+source .venv/bin/activate
+``` 
+
+5. Install required Python packages:
+
+```bash
+pip install -r requirements.txt
 ```
 
 ## Usage
@@ -46,7 +58,9 @@ sudo pip install -r requirements.txt
 Run the script with `sudo` to ensure it has the necessary permissions for packet capturing:
 
 ```bash
-sudo python3 main.py
+sudo su
+source .venv/bin/activate
+python3 main.py
 ```
 
 Ensure you have the necessary permissions to execute Python scripts with sudo, and consider setting up appropriate user permissions or using virtual environments for managing Python packages.

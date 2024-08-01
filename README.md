@@ -1,6 +1,6 @@
 # Caramelo Sniffer
 
-Caramelo Sniffer is a terminal-based packet analysis tool designed for Linux. It provides real-time packet capturing capabilities with options to filter and navigate through the captured data using keyboard controls.
+Caramelo Sniffer is a terminal-based packet analysis tool designed for Linux. It provides real-time packet capturing capabilities with options to filter and navigate through the captured data using keyboard controls. If you're interested in a React version, take a look at [this repository](https://github.com/kelvinleandro/caramelo-sniffer-react).
 
 ## Preview
 ![preview](assets/preview.png)

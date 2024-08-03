@@ -4,6 +4,12 @@ import time
 
 import pandas as pd
 
+# !: network (big-endian) byte order
+# B: unsigned int 1 byte
+# H: unsigned int 2 bytes
+# I/L: unsigned int 4 bytes
+# Ns: N-bytes string (return bytes)
+# Nx: ignore N bytes
 
 def capture_packets(enable: list, sock: socket.socket, df: pd.DataFrame) -> None:
     if enable[0] == "ON":

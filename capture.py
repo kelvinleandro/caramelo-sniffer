@@ -174,11 +174,11 @@ def ipv6_packet(data: bytes) -> tuple:
     This function unpacks and interprets the IPv6 header fields and extracts
     the source and destination IP addresses.
     """
-    version_traffic_flow = data[:4]
+    version_traffic_flow = struct.unpack('! L', data[:4])[0]
     version = (version_traffic_flow >> 28) & 0xF
     traffic_class = (version_traffic_flow >> 20) & 0xFF
     flow_label = version_traffic_flow & 0xFFFFF
-    payload_length, next_header, hop_limit = struct.unpack('!HBB', data[4:8])
+    payload_length, next_header, hop_limit = struct.unpack('! H B B', data[4:8])
     src = ipv6(data[8:24])
     dst = ipv6(data[24:40])
     return version, traffic_class, flow_label, payload_length, next_header, hop_limit, src, dst, data[40:]

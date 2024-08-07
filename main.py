@@ -143,6 +143,7 @@ def display_more_info(stdscr, df: pd.DataFrame, index: int, page: int) -> None:
             stdscr.addstr(4, 1, f"Port source: {rest['port_src']}")
             stdscr.addstr(5, 1, f"Port destination: {rest['port_dst']}")
             stdscr.addstr(6, 1, f"Length: {rest['length']}")
+            stdscr.addstr(7, 1, f"Checksum: {rest['checksum']}")
         elif packet["protocol"] == "TCP":
             stdscr.addstr(4, 1, f"Port source: {rest['port_src']}")
             stdscr.addstr(5, 1, f"Port destination: {rest['port_dst']}")

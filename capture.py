@@ -7,7 +7,7 @@ import pandas as pd
 # !: network (big-endian) byte order
 # B: unsigned int 1 byte
 # H: unsigned int 2 bytes
-# L: unsigned int 4 bytes
+# I/L: unsigned int 4 bytes
 # Ns: N-bytes string (return bytes)
 # Nx: ignore N bytes
 
@@ -18,7 +18,7 @@ def capture_packets(enable: list, sock: socket.socket, df: pd.DataFrame) -> None
             t = time.time()
             if raw_data:
                 mac_dst, mac_src, eth_proto, eth_data = ethernet_frame(raw_data)
-                transport_protocol = "unknown"
+                transport_protocol = f"unknown"
                 rest = {}
 
                 # IPv4 or IPv6
@@ -47,9 +47,9 @@ def capture_packets(enable: list, sock: socket.socket, df: pd.DataFrame) -> None
                                      "payload": transport_data})
                     elif protocol == 17:
                         transport_protocol = "UDP"
-                        src_port, dst_port, length, transport_data = udp_segment(ip_data)
+                        src_port, dst_port, length, checksum, transport_data = udp_segment(ip_data)
                         rest.update(
-                            {"port_src": src_port, "port_dst": dst_port, "length": length, "payload": transport_data})
+                            {"port_src": src_port, "port_dst": dst_port, "length": length, "checksum": checksum, "payload": transport_data})
                     else:
                         transport_protocol = f"{protocol}"
                         rest.update({"payload": ip_data})
@@ -87,6 +87,7 @@ def ethernet_frame(data: bytes) -> tuple:
     is converted from network to host byte order. The remainder of the data is the payload.
     """
     dest_mac, src_mac, proto = struct.unpack('! 6s 6s H', data[:14])
+    # Return unpacked data and the payload
     return get_mac_addr(dest_mac), get_mac_addr(src_mac), proto, data[14:]
 
 
@@ -133,23 +134,10 @@ def ipv4_packet(data: bytes) -> tuple:
     version = version_header_length >> 4
     header_length = (version_header_length & 15) * 4
     ttl, proto, src, dst = struct.unpack('! 8x B B 2x 4s 4s', data[:20])
-    return version, header_length, ttl, proto, ipv4(src), ipv4(dst), data[header_length:]
-
-
-def ipv4(addr: bytes) -> str:
-    """
-    Converts a 4-byte IP address into a human-readable dotted decimal format.
-
-    Parameters:
-        addr (bytes): A 4-byte string representing the IPv4 address.
-
-    Returns:
-        str: A string representation of the IPv4 address in dotted decimal format.
-
-    Each byte of the input is mapped to a decimal number and joined by dots to format
-    the address.
-    """
-    return '.'.join(map(str, addr))
+    src = socket.inet_ntop(socket.AF_INET, src)
+    dst = socket.inet_ntop(socket.AF_INET, dst)
+    # Return unpacked data and the payload
+    return version, header_length, ttl, proto, src, dst, data[header_length:]
 
 
 def ipv6_packet(data: bytes) -> tuple:
@@ -174,30 +162,15 @@ def ipv6_packet(data: bytes) -> tuple:
     This function unpacks and interprets the IPv6 header fields and extracts
     the source and destination IP addresses.
     """
-    version_traffic_flow = struct.unpack('! L', data[:4])[0]
+    version_traffic_flow = struct.unpack('!I', data[:4])[0]
     version = (version_traffic_flow >> 28) & 0xF
     traffic_class = (version_traffic_flow >> 20) & 0xFF
     flow_label = version_traffic_flow & 0xFFFFF
-    payload_length, next_header, hop_limit = struct.unpack('! H B B', data[4:8])
-    src = ipv6(data[8:24])
-    dst = ipv6(data[24:40])
+    payload_length, next_header, hop_limit, src, dst = struct.unpack('! H B B 16s 16s', data[4:40])
+    src = socket.inet_ntop(socket.AF_INET6, src)
+    dst = socket.inet_ntop(socket.AF_INET6, dst)
+    # Return unpacked data and the payload
     return version, traffic_class, flow_label, payload_length, next_header, hop_limit, src, dst, data[40:]
-
-
-def ipv6(addr: bytes) -> str:
-    """
-    Converts a 16-byte IPv6 address into a human-readable format.
-
-    Parameters:
-        addr (bytes): A 16-byte string representing the IPv6 address.
-
-    Returns:
-        str: A string representation of the IPv6 address in colon-separated format.
-
-    Each 2-byte segment of the input is mapped to a hexadecimal number and joined
-    by colons to format the address.
-    """
-    return ':'.join(f'{addr[i:i+2].hex()}' for i in range(0, 16, 2))
 
 
 def icmp_packet(data: bytes) -> tuple:
@@ -218,6 +191,7 @@ def icmp_packet(data: bytes) -> tuple:
     The remainder of the data is returned as the ICMP payload.
     """
     icmp_type, icmp_code, checksum = struct.unpack('! B B H', data[:4])
+    # Return unpacked data and the payload
     return icmp_type, icmp_code, checksum, data[4:]
 
 
@@ -287,6 +261,6 @@ def udp_segment(data: bytes) -> tuple:
     then returns the remainder of the data as the payload.
     """
     # Unpack the first 8 bytes for the UDP header
-    src_port, dest_port, size = struct.unpack('! H H 2x H', data[:8])
+    src_port, dest_port, length, checksum = struct.unpack('! H H H H', data[:8])
     # Return unpacked data and the payload
-    return src_port, dest_port, size, data[8:]
+    return src_port, dest_port, length, checksum, data[8:]

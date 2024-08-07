@@ -201,7 +201,8 @@ def display_payload(stdscr, payload: bytes, max_cols: int, max_lines: int) -> No
 
 def main(stdscr) -> None:
     # socket initialization
-    sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
+    ETH_P_ALL = socket.ntohs(3)
+    sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, ETH_P_ALL)
     sock.bind(('enp0s3', 0))  # Specify the network interface
     sock.setblocking(False)
 
